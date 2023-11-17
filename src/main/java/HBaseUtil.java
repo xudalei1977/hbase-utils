@@ -5,10 +5,11 @@ import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.*;
-
-
+import org.apache.hadoop.hbase.filter.*;
+import org.apache.hadoop.hbase.filter.CompareFilter.CompareOp;
 import java.io.IOException;
 import java.sql.Timestamp;
+import java.util.*;
 
 public class HBaseUtil {
 
@@ -73,9 +74,29 @@ public class HBaseUtil {
         table.close();
     }
 
-    public static long rowCounter(String tableName, String startRow, String stopRow) throws IOException{
+    public static long rowCounter(String tableName, String startRow, String stopRow,
+                                  String filterColumn, String filterColumnValue,
+                                  String aggColumnName) throws IOException{
         Table table = conn.getTable(TableName.valueOf(tableName));
-        Scan scan = new Scan(Bytes.toBytes(startRow), Bytes.toBytes(stopRow));
+
+        String filterColumnFamily = "";
+        String filterColumnName = "";
+        String[] arr1 = filterColumn.split(":");
+        if (arr1.length == 2){
+            filterColumnFamily = arr1[0];
+            filterColumnName = arr1[1];
+        }
+
+        Filter filter1 = new SingleColumnValueFilter(Bytes.toBytes(filterColumnFamily),
+                Bytes.toBytes(filterColumnName),
+                CompareOp.EQUAL,
+                Bytes.toBytes(filterColumnValue));
+
+        Scan scan = new Scan();
+        scan.withStartRow(Bytes.toBytes(startRow));
+        scan.withStopRow(Bytes.toBytes(stopRow));
+        scan.setFilter(filter1);
+
         ResultScanner rs = table.getScanner(scan);
         long rowCount = 0;
         for (Result result : rs) {
@@ -87,17 +108,19 @@ public class HBaseUtil {
     }
 
     /**
-     * args 1: zookeeper host, e.g. 10.0.0.51
-     * args 2: hbase data dir, e.g. s3://dalei-demo/hbase1
-     * args 3: table name, e.g. usertable
-     * args 4: hbase table start row, e.g. user1000000003865509391
-     * args 5: hbase table stop row, e.g. user1000000005803208364
-     * call sample: java -jar java-access-hbase-1.0-SNAPSHOT-jar-with-dependencies.jar \
-     *             10.0.0.75 s3://dalei-demo/hbase1 test1 user1|ts1 user1|ts3
+     * args 0: zookeeper host, e.g. 10.0.0.51
+     * args 1: hbase data dir, e.g. s3://dalei-demo/hbase1
+     * args 2: table name, e.g. usertable
+     * args 3: hbase table start row, e.g. user1000000003865509391
+     * args 4: hbase table stop row, e.g. user1000000005803208364
+     * args 5: hbase table column name filter,, e.g. sf:c1
+     * args 6: hbase table column value filter,, e.g. sku1
+     * args 7: hbase table column value filter,, e.g. sf:c2
+     * sample: java -jar hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar 10.0.0.75 s3://dalei-demo/hbase1 test1 "user1|ts1" "user1|ts3" "sf:c1" sku1 "sf:c2"
      **/
     public static void main(String[] args) throws IOException {
         init(args[0], args[1]);
-        System.out.println("========= after connection ");
+        System.out.println("========= hbase connection is ok.");
 
 //        createTable("student",new String[]{"score"});
 //        insertData("student","zhangsan","score","English","69");
@@ -105,7 +128,7 @@ public class HBaseUtil {
 //        insertData("student","zhangsan","score","Computer","77");
 //        getData("student","zhangsan","score","Math");
 
-        long rowCount = rowCounter(args[3], args[4], args[5]);
+        long rowCount = rowCounter(args[2], args[3], args[4], args[5], args[6], args[7]);
         System.out.println("the row count is := " + rowCount);
 
         close();
