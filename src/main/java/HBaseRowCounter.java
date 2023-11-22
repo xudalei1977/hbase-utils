@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.*;
 
-public class HBaseUtil {
+public class HBaseRowCounter {
 
     public static Configuration conf;//管理HBase的配置信息
     public static Connection conn;//管理HBase的连接
@@ -74,6 +74,23 @@ public class HBaseUtil {
         table.close();
     }
 
+    public static long rowCounter(String tableName, String startRow, String stopRow) throws IOException{
+        Table table = conn.getTable(TableName.valueOf(tableName));
+
+        Scan scan = new Scan();
+        scan.withStartRow(Bytes.toBytes(startRow));
+        scan.withStopRow(Bytes.toBytes(stopRow));
+
+        ResultScanner rs = table.getScanner(scan);
+        long rowCount = 0;
+        for (Result result : rs) {
+            //System.out.println("========= " + result.size());
+            rowCount += result.size();
+        }
+
+        return rowCount;
+    }
+
     public static long rowCounter(String tableName, String startRow, String stopRow,
                                   String filterColumn, String filterColumnValue,
                                   String aggColumnName) throws IOException{
@@ -116,11 +133,13 @@ public class HBaseUtil {
      * args 5: hbase table column name filter,, e.g. sf:c1
      * args 6: hbase table column value filter,, e.g. sku1
      * args 7: hbase table column value filter,, e.g. sf:c2
+     * sample: java -jar hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar 10.0.0.68 s3://dalei-demo/hbase1 usertable user1000000001382941188 user1000000001382951188
      * sample: java -jar hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar 10.0.0.75 s3://dalei-demo/hbase1 test1 "user1|ts1" "user1|ts3" "sf:c1" sku1 "sf:c2"
      **/
     public static void main(String[] args) throws IOException {
+        System.out.println("========= start." + new Date());
         init(args[0], args[1]);
-        System.out.println("========= hbase connection is ok.");
+        System.out.println("========= hbase connection is ok." + new Date());
 
 //        createTable("student",new String[]{"score"});
 //        insertData("student","zhangsan","score","English","69");
@@ -128,7 +147,12 @@ public class HBaseUtil {
 //        insertData("student","zhangsan","score","Computer","77");
 //        getData("student","zhangsan","score","Math");
 
-        long rowCount = rowCounter(args[2], args[3], args[4], args[5], args[6], args[7]);
+        long rowCount = 0L;
+        if (args.length == 5)
+            rowCount = rowCounter(args[2], args[3], args[4]);
+        else
+            rowCount = rowCounter(args[2], args[3], args[4], args[5], args[6], args[7]);
+
         System.out.println("the row count is := " + rowCount);
 
         close();
