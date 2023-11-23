@@ -114,18 +114,25 @@ public class HBaseGet {
      * args 1: hbase data dir, e.g. s3://dalei-demo/hbase1
      * args 2: table name, e.g. usertable
      * args 3: column family, e.g. cf_1
-     * args 4: row key list, e.g. "user1000000003382941188;user1000000003382941189;user1000000003382941198"
+     * args 4: row key list number, e.g. 100
      * args 5: retrive column, e.g. field0
-     * sample: java -jar hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar 10.0.0.80 s3://dalei-demo/hbase1 usertable cf_1 "user1000000001382941188;user1000000003382941189;user1000000003382941198" field0
+     * sample: java -jar hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar 10.0.0.82 s3://dalei-demo/hbase1 usertable cf_1 100 field0
      **/
     public static void main(String[] args) throws Exception {
         System.out.println("========= start." + new Date());
         init(args[0], args[1]);
         System.out.println("========= hbase connection is ok." + new Date());
 
-        Result[] rs = getRangeHashKey(args[0], args[1], args[2], args[3], Arrays.asList(args[4].split(";")), args[5].split(";"));
-        for(int i=0; i<rs.length; i++)
-            System.out.println("=========" + rs[i]);
+        Random rand = new Random();
+        long randLong = rand.nextLong();
+
+        // Print random integers
+        System.out.println("Random Integers: " + String.format("%020d", randLong));
+
+
+        //Result[] rs = getRangeHashKey(args[0], args[1], args[2], args[3], Arrays.asList(args[4].split(";")), args[5].split(";"));
+//        for(int i=0; i<rs.length; i++)
+//            System.out.println("=========" + rs[i]);
 //        String a = "user1000000003382941188;user1000000003382941189;user1000000003382941198";
 //        String[] arr = a.split(";");
 //        System.out.println("=========" + arr.length);
