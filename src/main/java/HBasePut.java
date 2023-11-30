@@ -4,14 +4,12 @@ import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
-import org.apache.hadoop.hbase.util.*;
-import org.apache.hadoop.hbase.filter.*;
-import org.apache.hadoop.hbase.filter.CompareFilter.CompareOp;
+import org.apache.hadoop.hbase.util.Bytes;
+
 import java.io.IOException;
-import java.sql.Timestamp;
 import java.util.*;
 
-public class HBaseGet {
+public class HBasePut {
 
     public static Configuration conf;//管理HBase的配置信息
     public static Connection conn;//管理HBase的连接
@@ -50,54 +48,18 @@ public class HBaseGet {
         }
     }
 
-    public static void insertData(String tableName,String rowkey,String colFamily,String col,String value) throws IOException {
-        Table table = conn.getTable(TableName.valueOf(tableName));
-        Put put = new Put(rowkey.getBytes());
-        put.addColumn(colFamily.getBytes(),col.getBytes(),value.getBytes());
-        table.put(put);
-        table.close();
-    }
-
-    public static void insertDemoData() throws Exception {
+    public static void insertData() throws IOException {
         Table table = conn.getTable(TableName.valueOf("usertable"));
 
-        List<Put> putList = new ArrayList();
-        Put put = null;
-
-        for(int i=1; i<1000; i++){
-            for(int j=1; j<1000; j=j+3) {
+        for(int i=1; i< 9; i++){
+            for(int j=1; j<900; i=i+3) {
                 long num = j * 10010010010010L;
-                String rowKey = "user" + String.format("%03d", i) + String.format("%016d", num);
-                //System.out.println("========== " + rowKey);
-
-                put = new Put(rowKey.getBytes());
+                String rowKey = "user" + String.format("%03d", i) + String.format("%16d", num);
+                Put put = new Put(rowKey.getBytes());
                 put.addColumn("cf_1".getBytes(), "field0".getBytes(), ("this is a demo value of " + rowKey).getBytes());
-                put.addColumn("cf_1".getBytes(), "field1".getBytes(), ("this is a demo value of " + rowKey).getBytes());
-                put.addColumn("cf_1".getBytes(), "field2".getBytes(), ("this is a demo value of " + rowKey).getBytes());
-                putList.add(put);
+                table.put(put);
             }
         }
-        table.put(put);
-        table.close();
-    }
-
-    public static void getDemoData() throws Exception {
-        Table table = conn.getTable(TableName.valueOf("usertable"));
-
-        List<Get> getList = new ArrayList();
-        Get get = null;
-
-        for(int i=1; i<1000; i++){
-            for(int j=1; j<1000; j=j+3) {
-                long num = j * 10010010010010L;
-                String rowKey = "user" + String.format("%03d", i) + String.format("%016d", num);
-                //System.out.println("========== " + rowKey);
-
-                get = new Get(rowKey.getBytes());
-                getList.add(get);
-            }
-        }
-        table.get(getList);
         table.close();
     }
 
@@ -159,26 +121,14 @@ public class HBaseGet {
      * args 3: column family, e.g. cf_1
      * args 4: row key list number, e.g. 100
      * args 5: retrive column, e.g. field0
-     * sample: java -jar hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar 10.0.0.250 s3://dalei-demo/hbase1 usertable cf_1 100 field0
+     * sample: java -jar hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar 10.0.0.82 s3://dalei-demo/hbase1 usertable cf_1 100 field0
      **/
     public static void main(String[] args) throws Exception {
         System.out.println("========= start." + new Date());
         init(args[0], args[1]);
         System.out.println("========= hbase connection is ok." + new Date());
 
-        insertDemoData();
-
-//        Random rand = new Random();
-//        int rowKeyNum = Integer.parseInt(args[4]);
-//        List<String> rowKeyList = new ArrayList();
-//        for(int i=0; i< rowKeyNum; i++){
-//            int randNum = rand.nextInt(2147483647);
-//            rowKeyList.add("user1" +  String.format("%018d", randNum));
-//        }
-//
-//        Result[] rs = getRangeHashKey(args[0], args[1], args[2], args[3], rowKeyList, args[5].split(";"));
-//        for(int i=0; i<rs.length; i++)
-//            System.out.println("=========" + rs[i]);
+        insertData();
 
         System.out.println("========= complete." + new Date());
 
