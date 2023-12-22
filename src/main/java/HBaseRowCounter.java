@@ -141,12 +141,6 @@ public class HBaseRowCounter {
         init(args[0], args[1]);
         System.out.println("========= hbase connection is ok." + new Date());
 
-//        createTable("student",new String[]{"score"});
-//        insertData("student","zhangsan","score","English","69");
-//        insertData("student","zhangsan","score","Math","86");
-//        insertData("student","zhangsan","score","Computer","77");
-//        getData("student","zhangsan","score","Math");
-
         long rowCount = 0L;
         if (args.length == 5)
             rowCount = rowCounter(args[2], args[3], args[4]);
@@ -154,7 +148,6 @@ public class HBaseRowCounter {
             rowCount = rowCounter(args[2], args[3], args[4], args[5], args[6], args[7]);
 
         System.out.println("the row count is := " + rowCount);
-
         close();
     }
 }

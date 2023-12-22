@@ -4,24 +4,26 @@ import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
-import org.apache.hadoop.hbase.util.Bytes;
-
+import org.apache.hadoop.hbase.util.*;
+import org.apache.hadoop.hbase.filter.*;
+import org.apache.hadoop.hbase.filter.CompareFilter.CompareOp;
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.util.*;
 
-public class HBasePut {
+public class HBaseAccess {
 
-    public static Configuration conf;//管理HBase的配置信息
-    public static Connection conn;//管理HBase的连接
-    public static Admin admin;//管理HBase数据库的连接
+    public static Configuration conf;
+    public static Connection conn;
+    public static Admin admin;
 
     public static void init(String host, String hbaseRootDir) throws IOException {
         conf = HBaseConfiguration.create();
         System.setProperty("HADOOP_USER_NAME", "hadoop");
         conf.set("HADOOP_USER_NAME", "hadoop");
         conf.set("hbase.rootdir", hbaseRootDir);
-        conf.set("hbase.zookeeper.quorum", host);//配置Zookeeper的ip地址
-        conf.set("hbase.zookeeper.property.clientPort", "2181");//配置zookeeper的端口
+        conf.set("hbase.zookeeper.quorum", host);
+        conf.set("hbase.zookeeper.property.clientPort", "2181");
 
         conn = ConnectionFactory.createConnection(conf);
         admin = conn.getAdmin();
@@ -37,7 +39,7 @@ public class HBasePut {
     public static void createTable(String myTableName, String[] colFamily) throws IOException {
         TableName tableName = TableName.valueOf(myTableName);
         if (admin.tableExists(tableName)) {
-            System.out.println(myTableName + "表已经存在");
+            System.out.println(myTableName + " exist already !");
         } else {
             HTableDescriptor hTableDescriptor = new HTableDescriptor(tableName);
             for (String str : colFamily) {
@@ -48,17 +50,48 @@ public class HBasePut {
         }
     }
 
-    public static void insertData() throws IOException {
+    public static void insertData(String tableName,String rowkey,String colFamily,String col,String value) throws IOException {
+        Table table = conn.getTable(TableName.valueOf(tableName));
+        Put put = new Put(rowkey.getBytes());
+        put.addColumn(colFamily.getBytes(),col.getBytes(),value.getBytes());
+        table.put(put);
+        table.close();
+    }
+
+    public static void putDemoData(int repeat, int startRegionOffset) throws Exception {
+        Table table = conn.getTable(TableName.valueOf("usertable"));
+        for(int i=1; i<=repeat; i++){
+            List<Put> putList = new ArrayList();
+            Put put = null;
+            for(int j=startRegionOffset; j<5000; j=j+50) {
+                long num = i * 10010010010010L;
+                String rowKey = "user" + String.format("%04d", j) + String.format("%015d", num);
+                //System.out.println("****** rowKey := " + rowKey);
+                put = new Put(rowKey.getBytes());
+                put.addColumn("cf_1".getBytes(), "field0".getBytes(), ("this is a demo value of " + rowKey).getBytes());
+                put.addColumn("cf_1".getBytes(), "field1".getBytes(), ("this is a demo value of " + rowKey).getBytes());
+                put.addColumn("cf_1".getBytes(), "field2".getBytes(), ("this is a demo value of " + rowKey).getBytes());
+                putList.add(put);
+            }
+            table.put(putList);
+        }
+        table.close();
+    }
+
+    public static void getDemoData(int repeat, int startRegionOffset) throws Exception {
         Table table = conn.getTable(TableName.valueOf("usertable"));
 
-        for(int i=1; i< 9; i++){
-            for(int j=1; j<900; i=i+3) {
-                long num = j * 10010010010010L;
-                String rowKey = "user" + String.format("%03d", i) + String.format("%16d", num);
-                Put put = new Put(rowKey.getBytes());
-                put.addColumn("cf_1".getBytes(), "field0".getBytes(), ("this is a demo value of " + rowKey).getBytes());
-                table.put(put);
+        for(int i=1; i<=repeat; i++){
+            List<Get> getList = new ArrayList();
+            Get get = null;
+            for(int j=startRegionOffset; j<5000; j=j+50) {
+                long num = i * 10010010010010L;
+                String rowKey = "user" + String.format("%04d", j) + String.format("%015d", num);
+                get = new Get(rowKey.getBytes());
+                getList.add(get);
             }
+            Result[] rs = table.get(getList);
+            //System.out.println("***** rs := " + rs[50].toString());
         }
         table.close();
     }
@@ -92,7 +125,6 @@ public class HBasePut {
             Get get = null;
 
             for(Iterator var8 = rowKeyList.iterator(); var8.hasNext(); getList.add(get)) {
-
                 String rowKey = (String) var8.next();
                 get = new Get(rowKey.getBytes());
 
@@ -115,23 +147,27 @@ public class HBasePut {
     }
 
     /**
+     * function: put|get demo data to|from usertable, we use parameter to control the batch times, each batch we put|get 100 records.
      * args 0: zookeeper host, e.g. 10.0.0.51
-     * args 1: hbase data dir, e.g. s3://dalei-demo/hbase1
-     * args 2: table name, e.g. usertable
-     * args 3: column family, e.g. cf_1
-     * args 4: row key list number, e.g. 100
-     * args 5: retrive column, e.g. field0
-     * sample: java -jar hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar 10.0.0.82 s3://dalei-demo/hbase1 usertable cf_1 100 field0
+     * args 1: hbase data dir, e.g. hdfs://10.0.0.51:8020/user/hbase
+     * args 2: operation, e.g. put|get
+     * args 3: repeat, execute operation times e.g. 20|50|100
+     * args 4: startRegionOffset, start region e.g. any int from 1 to 50
+     * sample: java -jar hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar 10.0.0.250 hdfs://10.0.0.51:8020/user/hbase put 10 1
      **/
     public static void main(String[] args) throws Exception {
-        System.out.println("========= start." + new Date());
+        long start = (new Date()).getTime();
         init(args[0], args[1]);
-        System.out.println("========= hbase connection is ok." + new Date());
-
-        insertData();
-
-        System.out.println("========= complete." + new Date());
-
+        switch(args[2]) {
+            case "put":
+                putDemoData(Integer.valueOf(args[3]), Integer.valueOf(args[4]));
+                break;
+            case "get":
+                getDemoData(Integer.valueOf(args[3]), Integer.valueOf(args[4]));
+                break;
+        }
+        long end = (new Date()).getTime();
+        System.out.println("========= time cost : " + Double.valueOf(end-start)/1000);
         close();
     }
 }
