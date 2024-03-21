@@ -137,6 +137,7 @@ public class HBaseRowCounter {
      * sample: java -jar hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar 10.0.0.75 s3://dalei-demo/hbase1 test1 "user1|ts1" "user1|ts3" "sf:c1" sku1 "sf:c2"
      **/
     public static void main(String[] args) throws IOException {
+
         System.out.println("========= start." + new Date());
         init(args[0], args[1]);
         System.out.println("========= hbase connection is ok." + new Date());

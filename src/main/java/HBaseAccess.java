@@ -153,7 +153,7 @@ public class HBaseAccess {
      * args 2: operation, e.g. put|get
      * args 3: repeat, execute operation times e.g. 20|50|100
      * args 4: startRegionOffset, start region e.g. any int from 1 to 50
-     * sample: java -jar hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar 10.0.0.250 hdfs://10.0.0.51:8020/user/hbase put 10 1
+     * sample: java -classpath hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar HBaseAccess 10.0.0.250 hdfs://10.0.0.51:8020/user/hbase put 10 1
      **/
     public static void main(String[] args) throws Exception {
         long start = (new Date()).getTime();
