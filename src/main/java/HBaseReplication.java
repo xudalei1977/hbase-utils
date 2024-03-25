@@ -54,7 +54,7 @@ public class HBaseReplication {
             nsd = admin1.getNamespaceDescriptor(namespace);
         } catch (org.apache.hadoop.hbase.NamespaceNotFoundException e) {
             System.out.println("========= Namespace does not exist in source cluster, now exit.");
-            return;
+            System.exit(-1);
         }
 
         try {
@@ -71,6 +71,7 @@ public class HBaseReplication {
 
         TableName[] tableNames = admin1.listTableNamesByNamespace(namespace);
         for (TableName tableName : tableNames) {
+            System.out.println("========= enable table replication. " + tableName.getNameAsString());
             admin1.enableTableReplication(tableName);
         }
     }
