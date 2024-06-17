@@ -5,11 +5,15 @@ import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.*;
-import org.apache.hadoop.hbase.filter.*;
-import org.apache.hadoop.hbase.filter.CompareFilter.CompareOp;
 import java.io.IOException;
-import java.sql.Timestamp;
 import java.util.*;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
+
 
 public class HBaseAccess {
 
@@ -17,11 +21,11 @@ public class HBaseAccess {
     public static Connection conn;
     public static Admin admin;
 
-    public static void init(String host, String hbaseRootDir) throws IOException {
+    public static void init(String host) throws IOException {
         conf = HBaseConfiguration.create();
-        System.setProperty("HADOOP_USER_NAME", "hadoop");
-        conf.set("HADOOP_USER_NAME", "hadoop");
-        conf.set("hbase.rootdir", hbaseRootDir);
+//        System.setProperty("HADOOP_USER_NAME", "hadoop");
+//        conf.set("HADOOP_USER_NAME", "hadoop");
+//        conf.set("hbase.rootdir", hbaseRootDir);
         conf.set("hbase.zookeeper.quorum", host);
         conf.set("hbase.zookeeper.property.clientPort", "2181");
 
@@ -58,19 +62,29 @@ public class HBaseAccess {
         table.close();
     }
 
-    public static void putDemoData(int repeat, int startRegionOffset) throws Exception {
-        Table table = conn.getTable(TableName.valueOf("usertable"));
+    /**
+     * create the table as follow:
+     * create 'device_data_202413', {NAME => 'f', BLOOMFILTER => 'ROW', IN_MEMORY => 'false', VERSIONS => '1', KEEP_DELETED_CELLS => 'FALSE', DATA_BLOCK_ENCODING => 'DIFF', COMPRESSION => 'SNAPPY', TTL => 'FOREVER', MIN_VERSIONS => '0', BLOCKCACHE => 'true', BLOCKSIZE => '65536', REPLICATION_SCOPE => '0'}, { NUMREGIONS => 100, SPLITALGO => 'HexStringSplit' }
+     * */
+    public static void putDemoData(int repeat, String enterDate) throws Exception {
+        Table table = conn.getTable(TableName.valueOf("device_data_202413"));
+
+        Random random = new Random();
+        String devicePrefix = "1000XXXX";
+
         for(int i=1; i<=repeat; i++){
             List<Put> putList = new ArrayList();
-            Put put = null;
-            for(int j=startRegionOffset; j<5000; j=j+50) {
-                long num = i * 10010010010010L;
-                String rowKey = "user" + String.format("%04d", j) + String.format("%015d", num);
-                //System.out.println("****** rowKey := " + rowKey);
-                put = new Put(rowKey.getBytes());
-                put.addColumn("cf_1".getBytes(), "field0".getBytes(), ("this is a demo value of " + rowKey).getBytes());
-                put.addColumn("cf_1".getBytes(), "field1".getBytes(), ("this is a demo value of " + rowKey).getBytes());
-                put.addColumn("cf_1".getBytes(), "field2".getBytes(), ("this is a demo value of " + rowKey).getBytes());
+            int ran = random.nextInt(repeat);
+            for(int j=1; j<100; j++) {
+                String deviceID = devicePrefix + String.format("%04d", ran) + String.format("%04d", j);
+                String rowKey = getMD5(deviceID).substring(0,4) + deviceID + enterDate + "0001";
+                System.out.println("****** rowKey := " + rowKey);
+                Put put = new Put(rowKey.getBytes());
+                put.addColumn("f".getBytes(), "field0".getBytes(), ("this is a demo value of " + rowKey).getBytes());
+                put.addColumn("f".getBytes(), "field1".getBytes(), ("this is a demo value of " + rowKey).getBytes());
+                put.addColumn("f".getBytes(), "field2".getBytes(), ("this is a demo value of " + rowKey).getBytes());
+                put.addColumn("f".getBytes(), "field3".getBytes(), ("this is a demo value of " + rowKey).getBytes());
+                put.addColumn("f".getBytes(), "field4".getBytes(), ("this is a demo value of " + rowKey).getBytes());
                 putList.add(put);
             }
             table.put(putList);
@@ -78,13 +92,13 @@ public class HBaseAccess {
         table.close();
     }
 
-    public static void getDemoData(int repeat, int startRegionOffset) throws Exception {
-        Table table = conn.getTable(TableName.valueOf("usertable"));
+    public static void getDemoData(int repeat, String enterDate) throws Exception {
+        Table table = conn.getTable(TableName.valueOf("device_data_202413"));
 
         for(int i=1; i<=repeat; i++){
             List<Get> getList = new ArrayList();
             Get get = null;
-            for(int j=startRegionOffset; j<5000; j=j+50) {
+            for(int j=repeat; j<5000; j=j+50) {
                 long num = i * 10010010010010L;
                 String rowKey = "user" + String.format("%04d", j) + String.format("%015d", num);
                 get = new Get(rowKey.getBytes());
@@ -114,7 +128,7 @@ public class HBaseAccess {
 
     public static Result[] getRangeHashKey(String host, String hbaseRootDir,
                                            String tableName, String family, List<String> rowKeyList, String[] columns) throws Exception{
-        init(host, hbaseRootDir);
+        init(host);
         //tableName = tableName.toUpperCase();
         Map<String, Map<String, Object>> mapRowkey = new LinkedHashMap();
         Table table = null;
@@ -146,24 +160,73 @@ public class HBaseAccess {
         }
     }
 
+    public static String getMD5(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] messageDigest = md.digest(input.getBytes());
+            return convertByteArrayToHexString(messageDigest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static String convertByteArrayToHexString(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
+
+    public static void scanDeviceData(String devicePath, String tableName,
+                                     String startDate, String endDate) throws Exception {
+        List<String> lines = Files.readAllLines(Paths.get(devicePath));
+        for (String deviceID : lines) {
+            System.out.println("*********** deviceID := " + deviceID);
+            String startRow = getMD5(deviceID).substring(0,16) + deviceID.substring(deviceID.length()-1) + startDate;
+            String endRow = getMD5(deviceID).substring(0,16) + deviceID.substring(deviceID.length()-1) + endDate;
+            scanTable(tableName, startRow, endRow);
+        }
+    }
+
+    public static void scanTable(String tableName,
+                                 String startRowKey, String endRowKey) throws Exception {
+        Table table = conn.getTable(TableName.valueOf(tableName));
+
+        // Create a Scan instance
+        Scan scan = new Scan();
+        scan.withStartRow(Bytes.toBytes(startRowKey));
+        scan.withStopRow(Bytes.toBytes(endRowKey));
+        scan.setCacheBlocks(true);
+
+        ResultScanner scanner = table.getScanner(scan);
+        for (Result result : scanner) {
+            result.getRow();
+        }
+    }
+
+
     /**
-     * function: put|get demo data to|from usertable, we use parameter to control the batch times, each batch we put|get 100 records.
+     * function: put|get demo data to|from device_data_202413, we use parameter to control the batch times, each batch we put|get 100 records.
      * args 0: zookeeper host, e.g. 10.0.0.51
-     * args 1: hbase data dir, e.g. hdfs://10.0.0.51:8020/user/hbase
-     * args 2: operation, e.g. put|get
-     * args 3: repeat, execute operation times e.g. 20|50|100
-     * args 4: startRegionOffset, start region e.g. any int from 1 to 50
-     * sample: java -classpath hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar HBaseAccess 10.0.0.250 hdfs://10.0.0.51:8020/user/hbase put 10 1
+     * args 1: operation, e.g. put|get
+     * args 2: repeat, execute operation times e.g. 20|50|100
+     * args 3: enterDate, start date e.g. 20200101
+     * sample: java -classpath hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar HBaseAccess 10.0.0.250 put 100 20200101
+     * sample: java -classpath hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar HBaseAccess 10.0.0.250 scan /home/ec2-user/device-id.txt device_data_202406 240607 240608
      **/
     public static void main(String[] args) throws Exception {
         long start = (new Date()).getTime();
-        init(args[0], args[1]);
-        switch(args[2]) {
+        init(args[0]);
+        switch(args[1]) {
             case "put":
-                putDemoData(Integer.valueOf(args[3]), Integer.valueOf(args[4]));
+                putDemoData(Integer.valueOf(args[2]), args[3]);
                 break;
             case "get":
-                getDemoData(Integer.valueOf(args[3]), Integer.valueOf(args[4]));
+                getDemoData(Integer.valueOf(args[2]), args[3]);
+                break;
+            case "scan":
+                scanDeviceData(args[2], args[3], args[4], args[5]);
                 break;
         }
         long end = (new Date()).getTime();
