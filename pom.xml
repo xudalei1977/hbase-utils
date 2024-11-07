@@ -11,7 +11,7 @@
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
-        <hbase.version>2.4.15</hbase.version>
+        <hbase.version>2.4.17</hbase.version>
     </properties>
 
     <dependencies>

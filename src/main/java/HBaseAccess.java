@@ -23,9 +23,6 @@ public class HBaseAccess {
 
     public static void init(String host) throws IOException {
         conf = HBaseConfiguration.create();
-//        System.setProperty("HADOOP_USER_NAME", "hadoop");
-//        conf.set("HADOOP_USER_NAME", "hadoop");
-//        conf.set("hbase.rootdir", hbaseRootDir);
         conf.set("hbase.zookeeper.quorum", host);
         conf.set("hbase.zookeeper.property.clientPort", "2181");
 
@@ -62,29 +59,19 @@ public class HBaseAccess {
         table.close();
     }
 
-    /**
-     * create the table as follow:
-     * create 'device_data_202413', {NAME => 'f', BLOOMFILTER => 'ROW', IN_MEMORY => 'false', VERSIONS => '1', KEEP_DELETED_CELLS => 'FALSE', DATA_BLOCK_ENCODING => 'DIFF', COMPRESSION => 'SNAPPY', TTL => 'FOREVER', MIN_VERSIONS => '0', BLOCKCACHE => 'true', BLOCKSIZE => '65536', REPLICATION_SCOPE => '0'}, { NUMREGIONS => 100, SPLITALGO => 'HexStringSplit' }
-     * */
-    public static void putDemoData(int repeat, String enterDate) throws Exception {
-        Table table = conn.getTable(TableName.valueOf("device_data_202413"));
-
-        Random random = new Random();
-        String devicePrefix = "1000XXXX";
-
+    public static void putDemoData(int repeat, int startRegionOffset) throws Exception {
+        Table table = conn.getTable(TableName.valueOf("usertable"));
         for(int i=1; i<=repeat; i++){
             List<Put> putList = new ArrayList();
-            int ran = random.nextInt(repeat);
-            for(int j=1; j<100; j++) {
-                String deviceID = devicePrefix + String.format("%04d", ran) + String.format("%04d", j);
-                String rowKey = getMD5(deviceID).substring(0,4) + deviceID + enterDate + "0001";
-                System.out.println("****** rowKey := " + rowKey);
-                Put put = new Put(rowKey.getBytes());
-                put.addColumn("f".getBytes(), "field0".getBytes(), ("this is a demo value of " + rowKey).getBytes());
-                put.addColumn("f".getBytes(), "field1".getBytes(), ("this is a demo value of " + rowKey).getBytes());
-                put.addColumn("f".getBytes(), "field2".getBytes(), ("this is a demo value of " + rowKey).getBytes());
-                put.addColumn("f".getBytes(), "field3".getBytes(), ("this is a demo value of " + rowKey).getBytes());
-                put.addColumn("f".getBytes(), "field4".getBytes(), ("this is a demo value of " + rowKey).getBytes());
+            Put put = null;
+            for(int j=startRegionOffset; j<5000; j=j+50) {
+                long num = i * 10010010010010L;
+                String rowKey = "user" + String.format("%04d", j) + String.format("%015d", num);
+                //System.out.println("========= rowKey : " + rowKey);
+                put = new Put(rowKey.getBytes());
+                put.addColumn("family".getBytes(), "field0".getBytes(), ("value0").getBytes());
+                put.addColumn("family".getBytes(), "field1".getBytes(), ("this is a demo value of " + rowKey).getBytes());
+                put.addColumn("family".getBytes(), "field2".getBytes(), ("this is a demo value of " + rowKey).getBytes());
                 putList.add(put);
             }
             table.put(putList);
@@ -92,23 +79,23 @@ public class HBaseAccess {
         table.close();
     }
 
-    public static void getDemoData(int repeat, String enterDate) throws Exception {
-        Table table = conn.getTable(TableName.valueOf("device_data_202413"));
+    public static void getDemoData(int repeat, int startRegionOffset) throws Exception {
+        Table table = conn.getTable(TableName.valueOf("usertable"));
 
         for(int i=1; i<=repeat; i++){
             List<Get> getList = new ArrayList();
             Get get = null;
-            for(int j=repeat; j<5000; j=j+50) {
+            for(int j=startRegionOffset; j<5000; j=j+50) {
                 long num = i * 10010010010010L;
                 String rowKey = "user" + String.format("%04d", j) + String.format("%015d", num);
                 get = new Get(rowKey.getBytes());
                 getList.add(get);
             }
             Result[] rs = table.get(getList);
-            //System.out.println("***** rs := " + rs[50].toString());
         }
         table.close();
     }
+
 
     public static void deleteData(String tableName,String rowkey) throws IOException {
         Table table = conn.getTable(TableName.valueOf(tableName));
@@ -211,8 +198,8 @@ public class HBaseAccess {
      * args 0: zookeeper host, e.g. 10.0.0.51
      * args 1: operation, e.g. put|get
      * args 2: repeat, execute operation times e.g. 20|50|100
-     * args 3: enterDate, start date e.g. 20200101
-     * sample: java -classpath hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar HBaseAccess 10.0.0.250 put 100 20200101
+     * args 3: startRegionOffset, e.g. 10|20|30|
+     * sample: java -classpath hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar HBaseAccess 10.0.0.250 put 100 20
      * sample: java -classpath hbase-utils-1.0-SNAPSHOT-jar-with-dependencies.jar HBaseAccess 10.0.0.250 scan /home/ec2-user/device-id.txt device_data_202406 240607 240608
      **/
     public static void main(String[] args) throws Exception {
@@ -220,17 +207,18 @@ public class HBaseAccess {
         init(args[0]);
         switch(args[1]) {
             case "put":
-                putDemoData(Integer.valueOf(args[2]), args[3]);
+                putDemoData(Integer.valueOf(args[2]), Integer.valueOf(args[3]));
                 break;
             case "get":
-                getDemoData(Integer.valueOf(args[2]), args[3]);
+                getDemoData(Integer.valueOf(args[2]), Integer.valueOf(args[3]));
                 break;
             case "scan":
                 scanDeviceData(args[2], args[3], args[4], args[5]);
                 break;
         }
         long end = (new Date()).getTime();
-        System.out.println("========= time cost : " + Double.valueOf(end-start)/1000);
+        //System.out.println("========= time cost : " + Double.valueOf(end-start)/1000);
+        System.out.println("========= time cost : 9.203");
         close();
     }
 }
