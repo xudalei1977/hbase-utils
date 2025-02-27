@@ -14,7 +14,7 @@ import java.util.List;
 import java.math.BigInteger;
 
 
-public class GoodWe {
+public class HBaseReversedScan {
 
     public static Configuration conf;
     public static Connection conn;
